@@ -363,7 +363,13 @@ private fun ModelsCard(
                 ) {
                     ModelRow("Synthesizer (.onnx)", model?.displayName, synthStatus, onPickModel)
                     ModelRow("ContentVec / HuBERT (.onnx)", hubert?.displayName, hubertStatus, onPickHubert)
-                    ModelRow("RMVPE (.onnx)", rmvpe?.displayName, rmvpeStatus, onPickRmvpe)
+                    val needsRmvpe = (synthStatus as? ModelLoadStatus.Loaded)?.summary?.f0 == true
+                    ModelRow(
+                        if (needsRmvpe) "RMVPE (.onnx) — required" else "RMVPE (.onnx) — optional",
+                        rmvpe?.displayName,
+                        rmvpeStatus,
+                        onPickRmvpe,
+                    )
                 }
             }
         }
@@ -375,7 +381,8 @@ private fun subtitleFor(
     hubert: ModelLoadStatus,
     rmvpe: ModelLoadStatus,
 ): String {
-    val statuses = listOf(synth, hubert, rmvpe)
+    val needsRmvpe = (synth as? ModelLoadStatus.Loaded)?.summary?.f0 == true
+    val statuses = if (needsRmvpe) listOf(synth, hubert, rmvpe) else listOf(synth, hubert)
     val total = statuses.size
     val loaded = statuses.count { it is ModelLoadStatus.Loaded }
     val loading = statuses.count { it is ModelLoadStatus.Loading }

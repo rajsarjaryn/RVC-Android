@@ -96,9 +96,12 @@ data class ConversionUiState(
     val showResultSheet: Boolean = false,
 ) {
     val allRequiredModelsLoaded: Boolean
-        get() = synthStatus is ModelLoadStatus.Loaded &&
-            hubertStatus is ModelLoadStatus.Loaded &&
-            rmvpeStatus is ModelLoadStatus.Loaded
+        get() {
+            val synthLoaded = synthStatus as? ModelLoadStatus.Loaded ?: return false
+            val needsRmvpe = synthLoaded.summary?.f0 == true
+            return hubertStatus is ModelLoadStatus.Loaded &&
+                (!needsRmvpe || rmvpeStatus is ModelLoadStatus.Loaded)
+        }
 
     /**
      * Why the convert button is disabled, surfaced to the user as a hint.
@@ -108,16 +111,18 @@ data class ConversionUiState(
         if (stage == Stage.RUNNING) return null
         if (model == null) return "Pick a synthesizer model"
         if (hubert == null) return "Pick a HuBERT / ContentVec model"
-        if (rmvpe == null) return "Pick an RMVPE model"
         if (synthStatus is ModelLoadStatus.Failed) return "Synthesizer failed: ${synthStatus.error}"
         if (hubertStatus is ModelLoadStatus.Failed) return "HuBERT failed: ${hubertStatus.error}"
-        if (rmvpeStatus is ModelLoadStatus.Failed) return "RMVPE failed: ${rmvpeStatus.error}"
         if (synthStatus is ModelLoadStatus.Loading) return "Loading synthesizer…"
         if (hubertStatus is ModelLoadStatus.Loading) return "Loading HuBERT…"
-        if (rmvpeStatus is ModelLoadStatus.Loading) return "Loading RMVPE…"
-        if (synthStatus is ModelLoadStatus.Empty) return "Waiting for synthesizer"
+        if (synthStatus !is ModelLoadStatus.Loaded) return "Waiting for synthesizer"
         if (hubertStatus is ModelLoadStatus.Empty) return "Waiting for HuBERT"
-        if (rmvpeStatus is ModelLoadStatus.Empty) return "Waiting for RMVPE"
+
+        val needsRmvpe = synthStatus.summary?.f0 == true
+        if (needsRmvpe && rmvpe == null) return "Pick an RMVPE model (required for this f0 model)"
+        if (needsRmvpe && rmvpeStatus is ModelLoadStatus.Failed) return "RMVPE failed: ${rmvpeStatus.error}"
+        if (needsRmvpe && rmvpeStatus is ModelLoadStatus.Loading) return "Loading RMVPE…"
+        if (needsRmvpe && rmvpeStatus is ModelLoadStatus.Empty) return "Waiting for RMVPE"
         if (input == null) return "Pick or record an input audio"
         return null
     }
